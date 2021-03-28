@@ -1,10 +1,13 @@
 import os
+import logging
 
 import pandas as pd
 import numpy as np
 
 from .helpers import mkdir
 from .database import retrieveMapping
+
+log = logging.getLogger(__name__)
 
 def processCSV(session, objectName, relationInfo, action):
 
@@ -23,6 +26,7 @@ def processCSV(session, objectName, relationInfo, action):
         for key, value in relationInfo['masterDetail'].items():
             resolveList.add(value)
         if len(resolveList) > 0:
+            resolveList = list(map(lambda x: x.lower(),resolveList))
             resolveIds = retrieveMapping(session, resolveList)
             df = df.replace(resolveIds)
  
@@ -33,6 +37,7 @@ def processCSV(session, objectName, relationInfo, action):
         resolveList = set({objectName})
         for key, value in relationInfo['lookUp'].items():
             resolveList.add(value)
+        resolveList = list(map(lambda x: x.lower(),resolveList))
         resolveIds = retrieveMapping(session, resolveList)
         df = df.replace(resolveIds)
 
@@ -42,6 +47,8 @@ def processCSV(session, objectName, relationInfo, action):
 
     destPath = f'./data/import/{objectName}-{action}.csv'
     df.to_csv(destPath,index = False)
+    
+    log.info('source csv processed for %s : %s'%(action,objectName))
 
     return destPath
 

@@ -1,3 +1,20 @@
+import logging
+
 from .main import dataloader
-from .database import DBsession, insertMapping, retrieveMapping
-from .csvProcessor import processCSV
+from .database import DBsession
+
+logger = logging.getLogger(__name__)
+handler = logging.StreamHandler()
+
+formatter = logging.Formatter('%(message)s')
+handler.setFormatter(formatter)
+
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
+
+
+
+
+
+
+
