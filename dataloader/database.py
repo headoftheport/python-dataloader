@@ -1,5 +1,8 @@
+import logging
+
 from .helpers import engine, Session , jobDetail, idMapping
 
+log = logging.getLogger(__name__)
 class DBsession:
 
     def __init__(self,sessionName,sourceName,destinationName):
@@ -19,11 +22,14 @@ def insertMapping(dbsession: DBsession,objectName: str, mapping: dict):
         newJob = jobDetail(dbsession.jobId,dbsession.source,dbsession.destination)
         dbsession.newSession.add(newJob)
         dbsession.newSession.commit()
-    values = list(dict(job_id = dbsession.jobId,object_name=objectName, source_id = key, destination_id = value ) for key , value in mapping.items())
+        log.info("New Job created in database. %s"%dbsession.jobId)
+    values = list(dict(job_id = dbsession.jobId,object_name=objectName.lower(), source_id = key, destination_id = value ) for key , value in mapping.items())
     dbsession.newSession.bulk_insert_mappings(idMapping,values)
     dbsession.newSession.commit()
-
+    log.info("Mappings inserted to database with jobId: %s; %s"%(dbsession.jobId,objectName))
+    
 def retrieveMapping(dbsession: DBsession, objectList: list) -> dict:
+    log.info('Retrieving mappings for the objects: %s'%(','.join(objectList)))
     result = dbsession.newSession.query(idMapping).filter(idMapping.object_name.in_(objectList),idMapping.job_id == dbsession.jobId)
     returnResult  = dict()
     for item in result:

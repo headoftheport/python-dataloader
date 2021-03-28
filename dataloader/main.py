@@ -1,20 +1,25 @@
+print(__package__,__name__)
 import getpass
 import os
 from json.decoder import JSONDecodeError
 import json
+import logging
 
 from simple_salesforce import Salesforce
 
 from .helpers import mkdir
-from .operations import exportData, relationshipInfo, insertData, updateData
+from .operations import export, relationshipInfo, insert, update
 from .csvProcessor import processCSV
 from .database import insertMapping
+from .exceptions import RecordInsertError
 
+log = logging.getLogger(__name__)
+
+LINE = '=' * 15
 class dataloader:
 
-    def __init__(self, instance = 'test',userName = None, password = None, securityToken = None):
+    def __init__(self, instance = 'test',userName = None, password = None, securityToken = None, echo = True):
         self.instance = instance
-    
         if self.instance != 'test':
             raise
         userName = userName if userName != None else input("username: ")
@@ -27,9 +32,29 @@ class dataloader:
             client_id='Python Dataloader', 
             domain= self.instance
         )
+        if ( not echo):
+            self._echo = False
+            logging.getLogger(__package__).setLevel(logging.WARNING)
+
+        log.info('Logged in to: [%s] as: [%s]'%(self.sf.sf_instance,userName))
+
+    @property
+    def echo(self):
+        return self._echo
+
+    @echo.setter
+    def echo(self, value):
+        if ( value == True):
+            self._echo = True
+            logging.getLogger(__package__).setLevel(logging.DEBUG)
+        elif( value == False ):
+            self._echo == False
+            logging.getLogger(__package__).setLevel(logging.WARNING)
+        else:
+            log.warning('Invalid Value: %s'%str(value))
 
     def exportRelationship(self,objectList):
-        mkdir(os.getcwd() + '/data/describe')
+        metadataPath = mkdir(os.getcwd() + '/data/describe')
         fileContent = {}  
         if os.path.exists("./data/relationship-info.json"):
             with open("./data/relationship-info.json","r") as file:
@@ -40,10 +65,15 @@ class dataloader:
 
         for item in objectList:
             tempDict = relationshipInfo(self.sf,item)
-            fileContent[item] = tempDict
+            if tempDict != None:
+                fileContent[item] = tempDict
 
         with open("./data/relationship-info.json","w") as file:
             json.dump(fileContent,file)
+            log.info('Updating relationship-info file...')
+        
+        log.info('Metadata Folder Path: %s'%metadataPath)
+        return './data/relationship-info.json'
 
     def exportData(self,objectName):
         mkdir(os.getcwd() + '/data/export')
@@ -51,8 +81,15 @@ class dataloader:
         with open("./data/relationship-info.json","r") as file:
             fileContent = json.load(file)
 
-        query = fileContent[objectName]['query']
-        exportData(self.sf,objectName, query)
+        try:
+            query = fileContent[objectName]['query']
+            if query == None or query == '' or not (objectName in query):
+                log.warning('Invalid Query: %s'%objectName)
+                return None
+            return export(self.sf,objectName, query)
+        except KeyError:
+            log.warning('Export query could not be found: %s'%objectName)
+            return None
 
     def insertData(self,objectName, session):
         mkdir(os.getcwd() + '/data/import')
@@ -60,20 +97,41 @@ class dataloader:
         fileContent = {}
         with open("./data/relationship-info.json","r") as file:
             fileContent = json.load(file)
-            
+
+        log.info('\n%s INSERT: %s %s\n'%(LINE,objectName,LINE))
+        if not (objectName in fileContent.keys()):
+            log.warning('Object could not found in relationship-info.json: %s'%objectName)
+            return None
+        
         filePath = processCSV(session,objectName,fileContent[objectName],'insert')
-        idMapping = insertData(self.sf,objectName, filePath)
-        insertMapping(session,objectName,idMapping)
-    
+        try:
+            idMapping = insert(self.sf,objectName, filePath)
+        except RecordInsertError as error:
+            log.error(error)
+            exit()
+        
+        if idMapping:
+            insertMapping(session,objectName,idMapping)
+            
+        log.info('\n%s FINISH: %s %s\n'%(LINE,objectName,LINE))
+
     def updateData(self,objectName, session):
+
+        log.info('\n%s UPDATE: %s %s\n'%(LINE,objectName,LINE))
         mkdir(os.getcwd() + '/data/import')
         mkdir(os.getcwd() + '/data/success')
         fileContent = {}
         with open("./data/relationship-info.json","r") as file:
             fileContent = json.load(file)
         
+        if not (objectName in fileContent.keys()):
+            log.warning('Object could not found in relationship-info.json: %s'%objectName)
+            return None
+        
         filePath = processCSV(session,objectName,fileContent[objectName],'update')
-        updateData(self.sf,objectName, filePath)
+        
+        update(self.sf,objectName, filePath)
+        log.info('\n%s FINISH: %s %s\n'%(LINE,objectName,LINE))
 
     def __getattr__(self, objectName):
         return objectLoader(self.sf,objectName)
