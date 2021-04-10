@@ -1,4 +1,3 @@
-print(__package__,__name__)
 import getpass
 import os
 from json.decoder import JSONDecodeError
@@ -8,7 +7,7 @@ import logging
 from simple_salesforce import Salesforce
 
 from .helpers import mkdir
-from .operations import export, relationshipInfo, insert, update
+from .operations import export, relationshipInfo, insert, update, queryToDelete, delete
 from .csvProcessor import processCSV
 from .database import insertMapping
 from .exceptions import RecordInsertError
@@ -36,7 +35,7 @@ class dataloader:
             self._echo = False
             logging.getLogger(__package__).setLevel(logging.WARNING)
 
-        log.info('Logged in to: [%s] as: [%s]'%(self.sf.sf_instance,userName))
+        log.info('Logged in to: %s as: %s'%(self.sf.sf_instance,userName))
 
     @property
     def echo(self):
@@ -62,12 +61,12 @@ class dataloader:
                     fileContent = json.load(file)
                 except JSONDecodeError: 
                     pass
-
+        
         for item in objectList:
             tempDict = relationshipInfo(self.sf,item)
             if tempDict != None:
                 fileContent[item] = tempDict
-
+            
         with open("./data/relationship-info.json","w") as file:
             json.dump(fileContent,file)
             log.info('Updating relationship-info file...')
@@ -160,5 +159,10 @@ class objectLoader:
     def updateData(self, filePath):
         return updateData(self.sfToken,self.objectName, filePath)
 
+    def deleteAll(self):
+        deleteItems = queryToDelete(self.sfToken,self.objectName)
+        if deleteItems == None:
+            return
+        delete(self.sfToken,self.objectName,deleteItems)
 
 
