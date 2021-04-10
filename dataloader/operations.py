@@ -9,15 +9,17 @@ from io import StringIO
 from simple_salesforce import SalesforceMalformedRequest
 
 from .exceptions import RecordInsertError
+from .Progress import bar, timer
 
 log = logging.getLogger(__name__)
+elapsedTimer = timer.Timer()
 
 def insert(sfToken, objectName, sourecFile):
     oldNewMap = {}
     insertList = []
     df = pd.read_csv(sourecFile)
     df = df.replace(np.nan, '', regex=True)
-    
+    progbar = bar.Bar(f'Inserting {objectName}',df.shape[0])
     for index, row in df.iterrows():
         try:
             oldId = str(row['Id'])
@@ -28,10 +30,12 @@ def insert(sfToken, objectName, sourecFile):
             if insertStatus['success'] == True and oldId != 'None':
                 oldNewMap[oldId] = (str(insertStatus['id']))
             insertList.append(insertStatus)
+            progbar.next()
         except SalesforceMalformedRequest as e:
             log.error(e)
+            progbar.finish()
             raise RecordInsertError(objectName, oldNewMap, row, insertList)
-            
+    progbar.finish()       
 
     successDataFrame = pd.DataFrame(insertList)
     successFile = os.getcwd() + f"/data/success/{objectName}-insert-{str(timeit.default_timer())}.csv"
@@ -47,8 +51,9 @@ def update(sfToken, objectName, sourecFile):
     errorCount = 0
     successCount = 0
     recordList = df.to_dict('records')
+    elapsedTimer.start()
     updateStatus = sfToken.bulk.__getattr__(objectName).update(recordList)
-
+    elapsedTimer.show(f'{objectName} update time')
     successStrings = map(json.dumps,updateStatus)
     df['status'] = list(successStrings)
     for index, row in df.iterrows():
@@ -64,8 +69,10 @@ def update(sfToken, objectName, sourecFile):
     return successFile
 
 def export(sfToken,objectName, query):
-        
+
+    elapsedTimer.reset()  
     queryResult = sfToken.query_all(query)
+    elapsedTimer.show(f'{objectName} export time')
     records = queryResult['records']
     size = queryResult['totalSize']
     if size == 0:
@@ -78,14 +85,15 @@ def export(sfToken,objectName, query):
     csvFileName = os.getcwd() + f'/data/export/{objectName}.csv'
     df.to_csv(csvFileName,index = False)
     
-    log.info('Data exported: [%s]: Record Count: [%d]'%(objectName,size))
+    log.info('Data exported: %s: Record Count: %d'%(objectName,size))
 
     return csvFileName
 
 def relationshipInfo(sfToken, objectName):
         objectInfo = {}
-        
+        elapsedTimer.reset()
         jsonElement = sfToken.__getattr__(objectName).describe()
+        elapsedTimer.show(f'{objectName} metadata export time' )
         if jsonElement == None:
             log.warning('Metadata could not be extracted: %s'%objectName)
             return None
@@ -115,7 +123,26 @@ def relationshipInfo(sfToken, objectName):
         tempDict['creatableFields'] = creatableFields
         tempDict['masterDetail'] = masterDeatil
         tempDict['lookUp'] = lookup
-        log.info('Metadata extracted: [%s]'%objectName)
+        log.info('Metadata extracted: %s'%objectName)
         return tempDict
+
+def queryToDelete(sfToken, objectName):
+    query = f'SELECT Id FROM {objectName}'
+    queryResult = sfToken.query_all(query)
+    if queryResult['totalSize']:
+        log.info("%s: %d records fetched."%(objectName, queryResult['totalSize']))
+        dictList = json.loads(json.dumps(queryResult['records']))
+        for item in dictList:
+            del item['attributes']
+        return dictList
+    else:
+        return None
+
+
+def delete(sfToken, objectName, deleteList):
+    elapsedTimer.reset()
+    result = sfToken.bulk.__getattr__(objectName).delete(deleteList)
+    elapsedTimer.show(f'{objectName} records deleted')
+    print(result)
 
 

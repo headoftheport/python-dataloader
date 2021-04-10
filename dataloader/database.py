@@ -26,7 +26,7 @@ def insertMapping(dbsession: DBsession,objectName: str, mapping: dict):
     values = list(dict(job_id = dbsession.jobId,object_name=objectName.lower(), source_id = key, destination_id = value ) for key , value in mapping.items())
     dbsession.newSession.bulk_insert_mappings(idMapping,values)
     dbsession.newSession.commit()
-    log.info("Mappings inserted to database with jobId: %s; %s"%(dbsession.jobId,objectName))
+    log.info("Mappings inserted to database with jobId: %s ; %s ; %d mappings"%(dbsession.jobId,objectName, len(mapping.keys())))
     
 def retrieveMapping(dbsession: DBsession, objectList: list) -> dict:
     log.info('Retrieving mappings for the objects: %s'%(','.join(objectList)))
