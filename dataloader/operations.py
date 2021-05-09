@@ -143,6 +143,6 @@ def delete(sfToken, objectName, deleteList):
     elapsedTimer.reset()
     result = sfToken.bulk.__getattr__(objectName).delete(deleteList)
     elapsedTimer.show(f'{objectName} records deleted')
-    print(result)
+    
 
 

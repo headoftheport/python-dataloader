@@ -9,7 +9,6 @@ from simple_salesforce import Salesforce
 from .helpers import mkdir
 from .operations import export, relationshipInfo, insert, update, queryToDelete, delete
 from .csvProcessor import processCSV
-from .database import insertMapping
 from .exceptions import RecordInsertError
 
 log = logging.getLogger(__name__)
@@ -110,7 +109,7 @@ class dataloader:
             exit()
         
         if idMapping:
-            insertMapping(session,objectName,idMapping)
+            session.insert_mapping(objectName,idMapping)
             
         log.info('\n%s FINISH: %s %s\n'%(LINE,objectName,LINE))
 

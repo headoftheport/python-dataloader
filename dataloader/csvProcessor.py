@@ -5,7 +5,6 @@ import pandas as pd
 import numpy as np
 
 from .helpers import mkdir
-from .database import retrieveMapping
 
 log = logging.getLogger(__name__)
 
@@ -27,7 +26,7 @@ def processCSV(session, objectName, relationInfo, action):
             resolveList.add(value)
         if len(resolveList) > 0:
             resolveList = list(map(lambda x: x.lower(),resolveList))
-            resolveIds = retrieveMapping(session, resolveList)
+            resolveIds = session.retrieve_mapping(resolveList)
             df = df.replace(resolveIds)
  
     elif action == 'update':
@@ -38,7 +37,7 @@ def processCSV(session, objectName, relationInfo, action):
         for key, value in relationInfo['lookUp'].items():
             resolveList.add(value)
         resolveList = list(map(lambda x: x.lower(),resolveList))
-        resolveIds = retrieveMapping(session, resolveList)
+        resolveIds = session.retrieve_mapping(resolveList)
         df = df.replace(resolveIds)
 
     fileColumns = set(df.columns.values)

@@ -1,8 +1,6 @@
 import logging
 
 from .main import dataloader
-from .database import DBsession
-
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler()
 

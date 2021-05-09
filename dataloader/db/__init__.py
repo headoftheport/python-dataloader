@@ -1,3 +1,5 @@
+print(__package__, __name__,__file__)
+
 from datetime import date
 import os
 
@@ -5,15 +7,22 @@ from sqlalchemy import create_engine, Column, String, Integer, Date, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship, backref
 
-from .directoryCreator import mkdir
+from dataloader.helpers.directoryCreator import mkdir
 
 mkdir(os.getcwd() + '/data/import')
 
-engine = create_engine('sqlite:///sqlite/db/idMapping.db',echo = False)
-Session = sessionmaker(bind=engine)
 Base = declarative_base()
-Base.metadata.create_all(engine)
+Session = sessionmaker()
 
+class database:
+
+    def __init__(self, dbName):
+        global Base
+        global Session
+        engine = create_engine(f'sqlite:///sqlite/db/{dbName}.db',echo = False)
+        Session.configure(bind=engine)
+        Base.metadata.create_all(engine)
+        
 class jobDetail(Base):
     __tablename__ = 'job_detail'
 
