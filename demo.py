@@ -1,4 +1,5 @@
-from dataloader import dataloader, DBsession
+from dataloader import dataloader
+from dataloader.db.session import mapping_session
 
 objectList = ['obj A', 'obj B']
 #export
@@ -12,7 +13,7 @@ for item in objectList:
     sf.exportData(item)
 
 #import
-db = DBsession('<unique-ID>','<source>','<destination>')
+db = mapping_session('<unique-ID>','<source>','<destination>')
 sf = dataloader(
                 instance = 'test', 
                 userName = '<destination-username>', 
